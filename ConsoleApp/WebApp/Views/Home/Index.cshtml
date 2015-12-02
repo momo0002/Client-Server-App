@@ -1,0 +1,46 @@
+﻿@model WebApp.Models.MessageDBModel
+@{
+    ViewBag.Title = "Index";
+}
+
+<div>
+    
+    <div class="col-md-6">
+        <h2>Message List</h2>
+
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Message</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null)
+                        {
+                            <tr>
+                                <td>
+                                    @Html.DisplayFor(m=>m.message)
+                                </td>
+                                <td>
+                                   @Html.DisplayFor(m => m.time)
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+    </div>
+
+
+    <div class="col-md-6">
+        <h2>Message History</h2>
+
+        @using (Ajax.BeginForm("ListMessages", "Home", null, new AjaxOptions { UpdateTargetId = "updateMessages", InsertionMode = InsertionMode.Replace }))
+        {
+            <input class="btn btn-default" value="Show History" type="submit" />
+        }
+        <div id="updateMessages"></div>
+    </div>
+</div>

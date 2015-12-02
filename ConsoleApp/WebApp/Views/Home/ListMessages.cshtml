@@ -1,0 +1,30 @@
+﻿@model IEnumerable<WebApp.Models.MessageDBModel>
+
+<div id="updateMessages">
+    <div class="table-responsive">
+        <table id="treatmentTable" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Message</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null)
+            {
+                foreach (var item in Model)
+                {
+                        <tr>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.message)
+                            </td>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.time)
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
