@@ -20,7 +20,6 @@ namespace ConsoleApp
             string line = null;
             while((line = Console.ReadLine()) != null)
             {
-                Console.Write("Enter Message: ");
                 using (var client = new HttpClient())
                 {
                     client.BaseAddress = new Uri("http://localhost:23373/");
