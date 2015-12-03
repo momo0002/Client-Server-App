@@ -1,0 +1,675 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Cqrs</name>
+    </assembly>
+    <members>
+        <member name="T:Cqrs.Bus.ICommandHandlerRegistrar">
+            <summary>
+            Registers command handlers that listen and respond to commands.
+            </summary>
+        </member>
+        <member name="T:Cqrs.Bus.IHandlerRegistrar">
+            <summary>
+            Registers event or command handlers that listen and respond to events or commands.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Bus.IHandlerRegistrar.RegisterHandler``1(System.Action{``0},System.Type)">
+            <summary>
+            Register an event or command handler that will listen and respond to events or commands.
+            </summary>
+        </member>
+        <member name="T:Cqrs.Bus.IEventHandlerRegistrar">
+            <summary>
+            Registers event handlers that listen and respond to events.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Bus.RouteManager.RegisterHandler``1(System.Action{``0},System.Type)">
+            <summary>
+            Register an event or command handler that will listen and respond to events or commands.
+            </summary>
+        </member>
+        <member name="T:Cqrs.Commands.DtoCommand`2">
+            <summary>
+            A <see cref="T:Cqrs.Commands.ICommand`1"/> for <see cref="T:Cqrs.Domain.IDto"/> objects
+            </summary>
+        </member>
+        <member name="T:Cqrs.Commands.ICommand`1">
+            <summary>
+            People request changes to the domain by sending <see cref="T:Cqrs.Commands.ICommand`1"/>s. They are named with a verb in the imperative mood plus and may include the <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> type, for example ConfirmOrder. Unlike an <see cref="T:Cqrs.Events.IEvent`1"/>, a <see cref="T:Cqrs.Commands.ICommand`1"/> is not a statement of fact; it's only a request, and thus may be refused. (A typical way to convey refusal is to raise a specifically typed <see cref="T:Cqrs.Events.IEvent`1"/> stating the <see cref="T:Cqrs.Commands.ICommand`1"/> didn't happen for a specific reason).
+            </summary>
+            <example>
+            public class ConfirmOrder
+            {
+            	public Guid OrderRsn;
+            }
+            </example>
+            <remarks>
+            What does a <see cref="T:Cqrs.Commands.ICommand`1"/> or an <see cref="T:Cqrs.Events.IEvent`1"/> look like?
+            
+            An <see cref="T:Cqrs.Commands.ICommand`1"/> or <see cref="T:Cqrs.Events.IEvent`1"/> is simply a data structure that contain data for reading, and no behavior. We call such structures "Data Transfer Objects" (DTOs). The name indicates the purpose. In many languages they are represented as classes, but they are not true classes in the real OO sense.
+            
+            
+            What is the difference between a <see cref="T:Cqrs.Commands.ICommand`1"/> and an <see cref="T:Cqrs.Events.IEvent`1"/>?
+            
+            Their intent.
+            
+            
+            What is immutability? Why is a <see cref="T:Cqrs.Commands.ICommand`1"/> or <see cref="T:Cqrs.Events.IEvent`1"/> immutable?
+            
+            For the purpose of this question, immutability is not having any setters, or other methods which change internal state. The <see cref="T:System.String"/> type in is a familiar example; you never actually change an existing <see cref="T:System.String"/> value, you just create new <see cref="T:System.String"/> values based on old ones.
+            
+            An <see cref="T:Cqrs.Commands.ICommand`1"/> is immutable because their expected usage is to be sent directly to the domain model side for processing. They do not need to change during their projected lifetime in traveling from client to server.
+            Sometimes however business logic dictates that a decision may be made to construct a <see cref="T:Cqrs.Commands.ICommand`1"/> and local variables should be used.
+            
+            An <see cref="T:Cqrs.Events.IEvent`1"/> is immutable because they represent domain actions that took place in the past. Unless you're Marty McFly, you can't change the past, and sometimes not even then.
+            
+            
+            What is command upgrading?
+            
+            Upgrading an <see cref="T:Cqrs.Commands.ICommand`1"/> becomes necessary when new requirements cause an existing <see cref="T:Cqrs.Commands.ICommand`1"/> not to be sufficient. Maybe a new field needs to be added, for example, or maybe an existing field should really have been split into several different ones.
+            
+            
+            How do I upgrade my <see cref="T:Cqrs.Commands.ICommand`1"/>s?
+            
+            How you do the upgrade depends how much control you have over your clients. If you can deploy your client updates and server updates together, just change things in both and deploy the updates. Job done. If not, it's usually best to have the updated <see cref="T:Cqrs.Commands.ICommand`1"/> be a new type and have the <see cref="T:Cqrs.Commands.ICommandHandler`2"/> accept both for a while.
+            
+            
+            Could you give an example of names of some versioned <see cref="T:Cqrs.Commands.ICommand`1"/>?
+            
+            Sure.
+            
+            UploadFile
+            UploadFile_v2
+            UploadFile_v3
+            
+            It's just a convention, but a sane one.
+            ********************************************
+            Also see http://cqrs.nu/Faq/commands-and-events.
+            </remarks>
+        </member>
+        <member name="T:Cqrs.Commands.ICommandHandler`2">
+            <summary>
+            An <see cref="T:Cqrs.Commands.ICommandHandler`2"/> receives an <see cref="T:Cqrs.Commands.ICommand`1"/> and brokers a result from the appropriate <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>.
+            "A result" is either a successful application of the command, or an exception.
+            This is the common sequence of steps an <see cref="T:Cqrs.Commands.ICommandHandler`2"/> might follow:
+            
+            Validate the <see cref="T:Cqrs.Commands.ICommand`1"/> on its own merits.
+            Ask an <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> to handle the <see cref="T:Cqrs.Commands.ICommand`1"/>.
+            If validation is successful, 0..n <see cref="T:Cqrs.Events.IEvent`1"/> artefacts (1 is common) are queued for publishing.
+            Attempt to persist the new <see cref="T:Cqrs.Events.IEvent`1"/> artefacts. If there's a concurrency conflict during this step, either give up, or retry things.
+            Dispatch the queued <see cref="T:Cqrs.Events.IEvent`1"/> artefacts.
+            </summary>
+            <remarks>
+            Should a <see cref="T:Cqrs.Commands.ICommandHandler`2"/> affect one or several <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>s?
+            
+            Only one.
+            
+            
+            Do I put logic in <see cref="T:Cqrs.Commands.ICommandHandler`2"/>?
+            
+            Yes. Exactly what logic depends on your factoring.
+            The logic for validating the <see cref="T:Cqrs.Commands.ICommand`1"/> on its own merits always gets executed in the <see cref="T:Cqrs.Commands.ICommandHandler`2"/>, although we recommend refactoring these into an <see cref="T:Cqrs.Commands.ICommandValidator`2"/>.
+            Provided validation is successful we recommend a more functional factoring, where the <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> exists independently of the <see cref="T:Cqrs.Commands.ICommandHandler`2"/> and the next step would be to load the <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> from the <see cref="T:Cqrs.Domain.IUnitOfWork`1"/> and request the <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> handle the <see cref="T:Cqrs.Commands.ICommand`1"/> itself.
+            The <see cref="T:Cqrs.Domain.IUnitOfWork`1"/> should then have uncommitted <see cref="T:Cqrs.Events.IEvent`1"/> artefacts as a results of asking the <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> to handle the <see cref="T:Cqrs.Commands.ICommand`1"/>.
+            Finally the <see cref="T:Cqrs.Commands.ICommandHandler`2"/> should instruct the <see cref="T:Cqrs.Domain.IUnitOfWork`1"/> to <see cref="M:Cqrs.Domain.IUnitOfWork`1.Commit"/> all uncommited <see cref="T:Cqrs.Events.IEvent`1"/> artefacts.
+            
+            However you have it, the logic boils down to validation and some sequence of steps that lead to the <see cref="T:Cqrs.Commands.ICommand`1"/> becoming an <see cref="T:System.Exception"/> or <see cref="T:Cqrs.Events.IEvent`1"/>(s). If you're tempted to go beyond this, see the rest of the remarks.
+            
+            
+            Can I call a read side (such as a read store, data store or <see cref="T:Cqrs.Domain.IRepository`1"/>) from my <see cref="T:Cqrs.Commands.ICommandHandler`2"/>?
+            
+            No.
+            
+            
+            Can I do logging, security, or auditing in my <see cref="T:Cqrs.Commands.ICommandHandler`2"/>?
+            
+            Yes. The decorator pattern comes in handy here to separate those concerns neatly.
+            
+            
+            How are conflicts between concurrent <see cref="T:Cqrs.Commands.ICommand`1"/>s handled in the <see cref="T:Cqrs.Commands.ICommandHandler`2"/>?
+            
+            The place where the new <see cref="T:Cqrs.Events.IEvent`1"/> artefacts for the <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> are persisted is the only place in the system where we need to worry about concurrency conflicts. The <see cref="T:Cqrs.Events.IEventStore`1"/> knows the sequence number of the latest <see cref="T:Cqrs.Events.IEvent`1"/> applied on that <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>, and the <see cref="T:Cqrs.Commands.ICommandHandler`2"/> knows the sequence number of the last <see cref="T:Cqrs.Events.IEvent`1"/> it read. If these numbers do not agree, it means some other thread or process got there first. The <see cref="T:Cqrs.Commands.ICommandHandler`2"/> can then load up the events again and make a new attempt.
+            
+            
+            Should I do things that have side-effects in the outside world (such as sending email) directly in a <see cref="T:Cqrs.Commands.ICommandHandler`2"/>?
+            
+            No, since a concurrency conflict will mean the <see cref="T:Cqrs.Commands.ICommandHandler`2"/> logic will be run again. Do such things in an Apply <see cref="T:Cqrs.Events.IEvent`1"/> method in an <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>.
+            ********************************************
+            Also see http://cqrs.nu/Faq/command-handlers.
+            </remarks>
+        </member>
+        <member name="T:Cqrs.Commands.ICommandValidator`2">
+            <summary>
+            Validates an <see cref="T:Cqrs.Commands.ICommand`1"/> on its own merits.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Commands.ICommandValidator`2.IsCommandValid(`1)">
+            <summary>
+            Validates the provided <param name="command" /> on its own merits.
+            </summary>
+        </member>
+        <member name="T:Cqrs.DataStores.IDataStore`1">
+            <summary>
+            A data store capable of being queried and modified
+            </summary>
+        </member>
+        <member name="M:Cqrs.DataStores.InProcessDataStore`1.GetEnumerator">
+            <summary>
+            Returns an enumerator that iterates through the collection.
+            </summary>
+            <returns>
+            A <see cref="T:System.Collections.Generic.IEnumerator`1"/> that can be used to iterate through the collection.
+            </returns>
+        </member>
+        <member name="M:Cqrs.DataStores.InProcessDataStore`1.System#Collections#IEnumerable#GetEnumerator">
+            <summary>
+            Returns an enumerator that iterates through a collection.
+            </summary>
+            <returns>
+            An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the collection.
+            </returns>
+        </member>
+        <member name="M:Cqrs.DataStores.InProcessDataStore`1.Dispose">
+            <summary>
+            Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+            </summary>
+        </member>
+        <member name="P:Cqrs.DataStores.InProcessDataStore`1.Expression">
+            <summary>
+            Gets the expression tree that is associated with the instance of <see cref="T:System.Linq.IQueryable"/>.
+            </summary>
+            <returns>
+            The <see cref="T:System.Linq.Expressions.Expression"/> that is associated with this instance of <see cref="T:System.Linq.IQueryable"/>.
+            </returns>
+        </member>
+        <member name="P:Cqrs.DataStores.InProcessDataStore`1.ElementType">
+            <summary>
+            Gets the type of the element(s) that are returned when the expression tree associated with this instance of <see cref="T:System.Linq.IQueryable"/> is executed.
+            </summary>
+            <returns>
+            A <see cref="T:System.Type"/> that represents the type of the element(s) that are returned when the expression tree associated with this object is executed.
+            </returns>
+        </member>
+        <member name="P:Cqrs.DataStores.InProcessDataStore`1.Provider">
+            <summary>
+            Gets the singleResultQuery provider that is associated with this data source.
+            </summary>
+            <returns>
+            The <see cref="T:System.Linq.IQueryProvider"/> that is associated with this data source.
+            </returns>
+        </member>
+        <member name="T:Cqrs.Domain.IAggregateRoot`1">
+            <summary>
+            An <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> is a larger unit of encapsulation than just a class. Every transaction is scoped to a single aggregate. The lifetimes of the components of an <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> are bounded by the lifetime of the entire <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>.
+            
+            <para/>Concretely, an <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> will handle <see cref="T:Cqrs.Commands.ICommand`1"/>s, apply <see cref="T:Cqrs.Events.IEvent`1"/>s, and have a state model encapsulated within it that allows it to implement the required command validation, thus upholding the invariants (business rules) of the <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>.
+            </summary>
+            <remarks>
+            I know <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> are transaction boundaries, but I really need to transactionally update two <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> in the same transaction. What should I do?
+            
+            <para/>You should re-think the following:
+            <para/>* Your <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> boundaries.
+            <para/>* The responsibilities of each <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>.
+            <para/>* What you can get away with doing in a read side or in a saga.
+            <para/>* The actual non-functional requirements of your domain.
+            <para/>
+            <para/>If you write a solution where two or more <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> are transactionally coupled, you have not understood <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>.
+            <para/>
+            <para/>
+            <para/>Why is the use of <see cref="T:System.Guid"/> as identifiers a good practice?
+            <para/>
+            <para/>Because they are (reasonably) globally unique, and can be generated either by the server or by the client.
+            <para/>
+            <para/>
+            <para/>What is an Rsn and what is an Id?
+            <para/>
+            <para/>Because few systems are truely green field and there is usually some existing system to operate with our framework identifies
+            <para/>Id properties as <see cref="T:System.Int32"/> typed properties from an external system
+            <para/>and Rsn properties as <see cref="T:System.Guid"/> typed properties for internal use.
+            <para/>
+            <para/>An example might be
+            <para/>{
+            <para/>	Guid Rsn
+            <para/>	string Name
+            <para/>	Guid CategoryRsn
+            <para/>	int CategoryId
+            <para/>}
+            <para/>
+            <para/>Here the category can be referenced within the CQRS framework by it's Rsn <see cref="T:System.Guid"/> typed identifier, but still has a reference to the external systems <see cref="T:System.Int32"/> typed identifier value.
+            <para/>
+            <para/>
+            <para/>How can I get the Rsn for newly created <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>?
+            <para/>
+            <para/>It's an important insight that the client can generate its own Rsns.
+            <para/>
+            <para/>If the client generates a <see cref="T:System.Guid"/> and places it in the create-the-aggregate <see cref="T:Cqrs.Commands.ICommand`1"/>, this is a non-issue. Otherwise, you have to listen to the the appropriate the-aggregate-was-created <see cref="T:Cqrs.Events.IEvent`1"/>, where the Rsn will appear be populated.
+            <para/>
+            <para/>
+            <para/>Should I allow references between <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>?
+            <para/>
+            <para/>In the sense of an actual "memory reference", absolutely not.
+            <para/>
+            <para/>On the write side, an actual memory reference from one <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> to another is forbidden and wrong, since <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> by definition are not allowed to reach outside of themselves. (Allowing this would mean an <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> is no longer a transaction boundary, meaning we can no longer sanely reason about its ability to uphold its invariants; it would also preclude sharding of <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>.)
+            <para/>
+            <para/>Referring to another <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> using an identifier is fine. It is useless on the write side (since the identifier must be treated as an opaque value, since <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> can not reach outside of themselves). Read sides may freely use such information, however, to do interesting correlations.
+            <para/>
+            <para/>
+            <para/>How can I validate a <see cref="T:Cqrs.Commands.ICommand`1"/> across a group of <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>?
+            <para/>
+            <para/>This is a common reaction to not being able to query across <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> anymore. There are several answers:
+            <para/>
+            <para/>* Do client-side validation.
+            <para/>* Use a read side.
+            <para/>* Use a saga.
+            <para/>* If those are all completely impractical, then it's time to consider if you got your <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> boundaries correct.
+            <para/>
+            <para/>
+            <para/>How can I guarantee referential integrity across <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>?
+            <para/>
+            <para/>You're still thinking in terms of foreign relations, not <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>. See last question. Also, remember that just because something would be in two tables in a relational design does not in any way suggest it should be two <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>. Designing an <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> is different.
+            <para/>
+            <para/>
+            <para/>How can I make sure a newly created user has a unique user name?
+            <para/>
+            <para/>This is a commonly occurring question since we're explicitly not performing cross-aggregate operations on the write side. We do, however, have a number of options:
+            <para/>
+            <para/>* Create a read-side of already allocated user names. Make the client query the read-side interactively as the user types in a name.
+            <para/>* Create a reactive saga to flag down and inactivate accounts that were nevertheless created with a duplicate user name. (Whether by extreme coincidence or maliciously or because of a faulty client.)
+            <para/>
+            <para/>
+            <para/>How can I verify that a customer identifier really exists when I place an order?
+            <para/>
+            <para/>Assuming customer and order are <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> here, it's clear that the order <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> cannot really validate this, since that would mean reaching out of the <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>.
+            <para/>
+            <para/>Checking up on it after the fact, in a saga or just in a read side that records "broken" orders, is one option. After all, the most important thing about an order is actually recording it, and presumably any interesting data about the recipient of the order is being copied into the order <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> (referring to the customer to find the address is bad design; the order was always made to be deliverd to a particular address, whether or not that customer changes their address in the future).
+            <para/>
+            <para/>Being able to use what data was recorded in this broken order means you've got a chance to rescue it and rectify the situation - which makes a good bit more business sense rather than dropping the order on the floor because a foreign key constraint was violated!
+            <para/>
+            <para/>
+            <para/>How can I update a set of <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> with a single <see cref="T:Cqrs.Commands.ICommand`1"/>?
+            <para/>
+            <para/>A single <see cref="T:Cqrs.Commands.ICommand`1"/> can't act on a set of <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>. It just can't.
+            <para/>
+            <para/>First off, ask yourself whether you really need to update several <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> using just one <see cref="T:Cqrs.Commands.ICommand`1"/>. What in the situation makes this a requirement?
+            <para/>
+            <para/>However, here's what you could do. Allow a new kind of "bulk command", conceptually containing the command you want to issue, and a set of <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> (specified either explicitly or implicitly) that you want to issue it on. The write side isn't powerful enough to make the bulk action, but it's able to create a corresponding "bulk event". A saga captures the event, and issues the <see cref="T:Cqrs.Commands.ICommand`1"/> on each of the specified <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>s. The saga can do rollback or send an email, as appropriate, if some of the <see cref="T:Cqrs.Commands.ICommand`1"/> fail.
+            <para/>
+            <para/>There are some advantages to this approach: we store the intent of the bulk action in the event store. The saga automates rollback or equivalent.
+            <para/>
+            <para/>Still, having to resort to this solution is a strong indication that your <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> boundaries are not drawn correctly. You might want to consider changing your <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> boundaries rather than building a saga for this.
+            <para/>
+            <para/>
+            <para/>What is sharding?
+            <para/>
+            <para/>A way to distribute large amounts of <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> on several write-side nodes. We can shard <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> easily because they are completely self-reliant.
+            <para/>
+            <para/>We can shard <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> easily because they don't have any external references.
+            <para/>
+            <para/>
+            <para/>Can an <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> send an <see cref="T:Cqrs.Events.IEvent`1"/> to another <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>?
+            <para/>
+            <para/>No.
+            <para/>
+            <para/>The factoring of your <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> and <see cref="T:Cqrs.Commands.ICommandHandler`2"/> will typically already make this idea impossible to express in code. But there's a deeper philosophical reason: go back and re-read the first sentence in the answer to "What is an <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>?". If you manage to circumvent the <see cref="T:Cqrs.Commands.ICommandHandler`2"/> and just push <see cref="T:Cqrs.Events.IEvent`1"/> into another <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> somehow, you will have taken away that <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>'s chance to participate in validation of changes. That's ultimately why we only allow <see cref="T:Cqrs.Events.IEvent`1"/> to be created as a result of <see cref="T:Cqrs.Commands.ICommand`1"/>s validated by a <see cref="T:Cqrs.Commands.ICommandHandler`2"/> on an <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>.
+            <para/>
+            <para/>
+            <para/>Can I call a read side from my <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>?
+            <para/>
+            <para/>No.
+            <para/>
+            <para/>
+            <para/>How do I send e-mail in a CQRS system?
+            <para/>
+            <para/>In an <see cref="T:Cqrs.Events.IEventHandler`2"/> outside of the <see cref="T:Cqrs.Domain.IAggregateRoot`1"/>. Do not do it in the <see cref="T:Cqrs.Commands.ICommandHandler`2"/>, as if the <see cref="T:Cqrs.Events.IEvent`1"/> artefacts are not persisted due to losing a race with another <see cref="T:Cqrs.Commands.ICommand`1"/> then the email will have been sent on a false premise.
+            <para/>********************************************
+            <para/>Also see http://cqrs.nu/Faq/aggregates.
+            </remarks>
+        </member>
+        <member name="T:Cqrs.Domain.IUnitOfWork`1">
+            <summary>
+            This is a Unit of Work
+            </summary>
+        </member>
+        <member name="M:Cqrs.Domain.IUnitOfWork`1.Add``1(``0)">
+            <summary>
+            Add an item into the <see cref="T:Cqrs.Domain.IUnitOfWork`1"/> ready to be committed.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Domain.IUnitOfWork`1.Get``1(System.Guid,System.Nullable{System.Int32})">
+            <summary>
+            Get an item from the <see cref="T:Cqrs.Domain.IUnitOfWork`1"/> if it has already been loaded.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Domain.IUnitOfWork`1.Commit">
+            <summary>
+            Commit any changed <see cref="T:Cqrs.Domain.AggregateRoot`1"/> added to this <see cref="T:Cqrs.Domain.IUnitOfWork`1"/> via <see cref="M:Cqrs.Domain.IUnitOfWork`1.Add``1(``0)"/>
+            </summary>
+        </member>
+        <member name="T:Cqrs.Domain.UnitOfWork`1">
+            <summary>
+            This is a Unit of Work
+            </summary>
+        </member>
+        <member name="M:Cqrs.Domain.UnitOfWork`1.Add``1(``0)">
+            <summary>
+            Add an item into the <see cref="T:Cqrs.Domain.IUnitOfWork`1"/> ready to be committed.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Domain.UnitOfWork`1.Get``1(System.Guid,System.Nullable{System.Int32})">
+            <summary>
+            Get an item from the <see cref="T:Cqrs.Domain.IUnitOfWork`1"/> if it has already been loaded or get it from the <see cref="T:Cqrs.Domain.IRepository`1"/>.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Domain.UnitOfWork`1.Commit">
+            <summary>
+            Commit any changed <see cref="T:Cqrs.Domain.AggregateRoot`1"/> added to this <see cref="T:Cqrs.Domain.IUnitOfWork`1"/> via <see cref="M:Cqrs.Domain.UnitOfWork`1.Add``1(``0)"/>
+            into the <see cref="T:Cqrs.Domain.IRepository`1"/>
+            </summary>
+        </member>
+        <member name="T:Cqrs.Entities.DecimalRange">
+            <summary>
+            A <see cref="T:Cqrs.Entities.Range`1"/> object for collecting a <see cref="T:System.Decimal"/> lower and upper limit.
+            </summary>
+        </member>
+        <member name="T:Cqrs.Entities.Range`1">
+            <summary>
+            A range object for collecting a lower and upper limit, such as a number or date range.
+            </summary>
+        </member>
+        <member name="P:Cqrs.Entities.Range`1.From">
+            <summary>
+            The lower limit such as a from <see cref="T:System.DateTime"/>.
+            </summary>
+        </member>
+        <member name="P:Cqrs.Entities.Range`1.To">
+            <summary>
+            The upper limit such as a to <see cref="T:System.DateTime"/>.
+            </summary>
+        </member>
+        <member name="P:Cqrs.Entities.Range`1.IsFromInclusive">
+            <summary>
+            Is the value of <see cref="P:Cqrs.Entities.Range`1.From"/> inclusive or not. Defaults to true.
+            </summary>
+        </member>
+        <member name="P:Cqrs.Entities.Range`1.IsToInclusive">
+            <summary>
+            Is the value of <see cref="P:Cqrs.Entities.Range`1.To"/> inclusive or not. Defaults to true.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Entities.DecimalRange.#ctor">
+            <summary>
+            Instantiates and Initialises a new instance of the <see cref="T:Cqrs.Entities.DecimalRange"/> class.
+            </summary>
+        </member>
+        <member name="T:Cqrs.Entities.IntegerRange">
+            <summary>
+            A <see cref="T:Cqrs.Entities.Range`1"/> object for collecting a <see cref="T:System.Int32"/> lower and upper limit.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Entities.IntegerRange.#ctor">
+            <summary>
+            Instantiates and Initialises a new instance of the <see cref="T:Cqrs.Entities.IntegerRange"/> class.
+            </summary>
+        </member>
+        <member name="T:Cqrs.Entities.DateRange">
+            <summary>
+            A <see cref="T:Cqrs.Entities.Range`1"/> object for collecting a <see cref="T:System.DateTime"/> lower and upper limit.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Entities.DateRange.#ctor">
+            <summary>
+            Instantiates and Initialises a new instance of the <see cref="T:Cqrs.Entities.DateRange"/> class.
+            </summary>
+        </member>
+        <member name="T:Cqrs.Events.IEvent`1">
+            <summary>
+            An <see cref="T:Cqrs.Events.IEvent`1"/> represents something that took place in the domain. They are always named with a past-participle verb, such as OrderConfirmed. It's not unusual, but not required, for an <see cref="T:Cqrs.Events.IEvent`1"/> to name an <see cref="T:Cqrs.Domain.IAggregateRoot`1"/> or <see cref="T:Cqrs.Entities.IEntity"/> that it relates to; let the domain language be your guide.
+            
+            Since an <see cref="T:Cqrs.Events.IEvent`1"/> represents something in the past, it can be considered a statement of fact and used to take decisions in other parts of the system.
+            </summary>
+            <example>
+            public class OrderConfirmed 
+            {
+            	public Guid OrderRsn;
+            	public DateTime ConfirmationDate;
+            }
+            </example>
+            <remarks>
+            What does a <see cref="T:Cqrs.Commands.ICommand`1"/> or an <see cref="T:Cqrs.Events.IEvent`1"/> look like?
+            
+            An <see cref="T:Cqrs.Commands.ICommand`1"/> or <see cref="T:Cqrs.Events.IEvent`1"/> is simply a data structure that contain data for reading, and no behavior. We call such structures "Data Transfer Objects" (DTOs). The name indicates the purpose. In many languages they are represented as classes, but they are not true classes in the real OO sense.
+            
+            
+            What is the difference between a <see cref="T:Cqrs.Commands.ICommand`1"/> and an <see cref="T:Cqrs.Events.IEvent`1"/>?
+            
+            Their intent.
+            
+            
+            What is immutability? Why is a <see cref="T:Cqrs.Commands.ICommand`1"/> or <see cref="T:Cqrs.Events.IEvent`1"/> immutable?
+            
+            For the purpose of this question, immutability is not having any setters, or other methods which change internal state. The <see cref="T:System.String"/> type in is a familiar example; you never actually change an existing <see cref="T:System.String"/> value, you just create new <see cref="T:System.String"/> values based on old ones.
+            
+            An <see cref="T:Cqrs.Commands.ICommand`1"/> is immutable because their expected usage is to be sent directly to the domain model side for processing. They do not need to change during their projected lifetime in traveling from client to server.
+            Sometimes however business logic dictates that a decision may be made to construct a <see cref="T:Cqrs.Commands.ICommand`1"/> and local variables should be used.
+            
+            An <see cref="T:Cqrs.Events.IEvent`1"/> is immutable because they represent domain actions that took place in the past. Unless you're Marty McFly, you can't change the past, and sometimes not even then.
+            
+            
+            What is command upgrading?
+            
+            Upgrading an <see cref="T:Cqrs.Commands.ICommand`1"/> becomes necessary when new requirements cause an existing <see cref="T:Cqrs.Commands.ICommand`1"/> not to be sufficient. Maybe a new field needs to be added, for example, or maybe an existing field should really have been split into several different ones.
+            
+            
+            How do I upgrade my <see cref="T:Cqrs.Commands.ICommand`1"/>s?
+            
+            How you do the upgrade depends how much control you have over your clients. If you can deploy your client updates and server updates together, just change things in both and deploy the updates. Job done. If not, it's usually best to have the updated <see cref="T:Cqrs.Commands.ICommand`1"/> be a new type and have the <see cref="T:Cqrs.Commands.ICommandHandler`2"/> accept both for a while.
+            
+            
+            Could you give an example of names of some versioned <see cref="T:Cqrs.Commands.ICommand`1"/>?
+            
+            Sure.
+            
+            UploadFile
+            UploadFile_v2
+            UploadFile_v3
+            
+            It's just a convention, but a sane one.
+            ********************************************
+            Also see http://cqrs.nu/Faq/commands-and-events.
+            </remarks>
+        </member>
+        <member name="M:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.GetEnumerator">
+            <summary>
+            Returns an enumerator that iterates through the collection.
+            </summary>
+            <returns>
+            A <see cref="T:System.Collections.Generic.IEnumerator`1"/> that can be used to iterate through the collection.
+            </returns>
+        </member>
+        <member name="M:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.System#Collections#IEnumerable#GetEnumerator">
+            <summary>
+            Returns an enumerator that iterates through a collection.
+            </summary>
+            <returns>
+            An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the collection.
+            </returns>
+        </member>
+        <member name="M:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.Add(`0)">
+            <summary>
+            Adds an item to the <see cref="T:System.Collections.Generic.ICollection`1"/>.
+            </summary>
+            <param name="item">The object to add to the <see cref="T:System.Collections.Generic.ICollection`1"/>.</param><exception cref="T:System.NotSupportedException">The <see cref="T:System.Collections.Generic.ICollection`1"/> is read-only.</exception>
+        </member>
+        <member name="M:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.Clear">
+            <summary>
+            Removes all items from the <see cref="T:System.Collections.Generic.ICollection`1"/>.
+            </summary>
+            <exception cref="T:System.NotSupportedException">The <see cref="T:System.Collections.Generic.ICollection`1"/> is read-only. </exception>
+        </member>
+        <member name="M:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.Contains(`0)">
+            <summary>
+            Determines whether the <see cref="T:System.Collections.Generic.ICollection`1"/> contains a specific value.
+            </summary>
+            <returns>
+            true if <paramref name="item"/> is found in the <see cref="T:System.Collections.Generic.ICollection`1"/>; otherwise, false.
+            </returns>
+            <param name="item">The object to locate in the <see cref="T:System.Collections.Generic.ICollection`1"/>.</param>
+        </member>
+        <member name="M:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.CopyTo(`0[],System.Int32)">
+            <summary>
+            Copies the elements of the <see cref="T:System.Collections.Generic.ICollection`1"/> to an <see cref="T:System.Array"/>, starting at a particular <see cref="T:System.Array"/> index.
+            </summary>
+            <param name="array">The one-dimensional <see cref="T:System.Array"/> that is the destination of the elements copied from <see cref="T:System.Collections.Generic.ICollection`1"/>. The <see cref="T:System.Array"/> must have zero-based indexing.</param><param name="arrayIndex">The zero-based index in <paramref name="array"/> at which copying begins.</param><exception cref="T:System.ArgumentNullException"><paramref name="array"/> is null.</exception><exception cref="T:System.ArgumentOutOfRangeException"><paramref name="arrayIndex"/> is less than 0.</exception><exception cref="T:System.ArgumentException"><paramref name="array"/> is multidimensional.-or-The number of elements in the source <see cref="T:System.Collections.Generic.ICollection`1"/> is greater than the available space from <paramref name="arrayIndex"/> to the end of the destination <paramref name="array"/>.-or-Type <paramref name="TEntity"/> cannot be cast automatically to the type of the destination <paramref name="array"/>.</exception>
+        </member>
+        <member name="M:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.Remove(`0)">
+            <summary>
+            Removes the first occurrence of a specific object from the <see cref="T:System.Collections.Generic.ICollection`1"/>.
+            </summary>
+            <returns>
+            true if <paramref name="item"/> was successfully removed from the <see cref="T:System.Collections.Generic.ICollection`1"/>; otherwise, false. This method also returns false if <paramref name="item"/> is not found in the original <see cref="T:System.Collections.Generic.ICollection`1"/>.
+            </returns>
+            <param name="item">The object to remove from the <see cref="T:System.Collections.Generic.ICollection`1"/>.</param><exception cref="T:System.NotSupportedException">The <see cref="T:System.Collections.Generic.ICollection`1"/> is read-only.</exception>
+        </member>
+        <member name="M:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.IndexOf(`0)">
+            <summary>
+            Determines the index of a specific item in the <see cref="T:System.Collections.Generic.IList`1"/>.
+            </summary>
+            <returns>
+            The index of <paramref name="item"/> if found in the list; otherwise, -1.
+            </returns>
+            <param name="item">The object to locate in the <see cref="T:System.Collections.Generic.IList`1"/>.</param>
+        </member>
+        <member name="M:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.Insert(System.Int32,`0)">
+            <summary>
+            Inserts an item to the <see cref="T:System.Collections.Generic.IList`1"/> at the specified index.
+            </summary>
+            <param name="index">The zero-based index at which <paramref name="item"/> should be inserted.</param><param name="item">The object to insert into the <see cref="T:System.Collections.Generic.IList`1"/>.</param><exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a valid index in the <see cref="T:System.Collections.Generic.IList`1"/>.</exception><exception cref="T:System.NotSupportedException">The <see cref="T:System.Collections.Generic.IList`1"/> is read-only.</exception>
+        </member>
+        <member name="M:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.RemoveAt(System.Int32)">
+            <summary>
+            Removes the <see cref="T:System.Collections.Generic.IList`1"/> item at the specified index.
+            </summary>
+            <param name="index">The zero-based index of the item to remove.</param><exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a valid index in the <see cref="T:System.Collections.Generic.IList`1"/>.</exception><exception cref="T:System.NotSupportedException">The <see cref="T:System.Collections.Generic.IList`1"/> is read-only.</exception>
+        </member>
+        <member name="P:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.Count">
+            <summary>
+            Gets the number of elements contained in the <see cref="T:System.Collections.Generic.ICollection`1"/>.
+            </summary>
+            <returns>
+            The number of elements contained in the <see cref="T:System.Collections.Generic.ICollection`1"/>.
+            </returns>
+        </member>
+        <member name="P:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.IsReadOnly">
+            <summary>
+            Gets a value indicating whether the <see cref="T:System.Collections.Generic.ICollection`1"/> is read-only.
+            </summary>
+            <returns>
+            true if the <see cref="T:System.Collections.Generic.ICollection`1"/> is read-only; otherwise, false.
+            </returns>
+        </member>
+        <member name="P:Cqrs.Repositories.InMemoryDatabase.CollectionWrapper`1.Item(System.Int32)">
+            <summary>
+            Gets or sets the element at the specified index.
+            </summary>
+            <returns>
+            The element at the specified index.
+            </returns>
+            <param name="index">The zero-based index of the element to get or set.</param><exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is not a valid index in the <see cref="T:System.Collections.Generic.IList`1"/>.</exception><exception cref="T:System.NotSupportedException">The property is set and the <see cref="T:System.Collections.Generic.IList`1"/> is read-only.</exception>
+        </member>
+        <member name="M:Cqrs.Repositories.Queries.QueryParameter.CompareTo(System.Object)">
+            <summary>
+            Compares the current instance with another object of the same type and returns an integer that indicates whether the current instance precedes, follows, or occurs in the same position in the sort order as the other object.
+            </summary>
+            <returns>
+            A value that indicates the relative order of the objects being compared. The return value has these meanings: Value Meaning Less than zero This instance is less than <paramref name="obj"/>. Zero This instance is equal to <paramref name="obj"/>. Greater than zero This instance is greater than <paramref name="obj"/>. 
+            </returns>
+            <param name="obj">An object to compare with this instance. </param>
+            <exception cref="T:System.ArgumentException"><paramref name="obj"/> is not the same type as this instance. </exception>
+        </member>
+        <member name="M:Cqrs.Repositories.Queries.QueryParameter.CompareTo(Cqrs.Repositories.Queries.QueryParameter)">
+            <summary>
+            Compares the current object with another object of the same type.
+            </summary>
+            <returns>
+            A value that indicates the relative order of the objects being compared. The return value has the following meanings: Value Meaning Less than zero This object is less than the <paramref name="other"/> parameter.Zero This object is equal to <paramref name="other"/>. Greater than zero This object is greater than <paramref name="other"/>. 
+            </returns>
+            <param name="other">An object to compare with this object.</param>
+        </member>
+        <member name="M:Cqrs.Services.IUnitOfWorkService.SetCommitter(System.Object)">
+            <summary>
+            Informs the service of the object that will be committing the UnitOfWork.
+            </summary>
+            <returns>
+            true if the provided <paramref name="commiter"/> is accepted as the committer, false otherwise.
+            </returns>
+        </member>
+        <member name="M:Cqrs.Services.IUnitOfWorkService.Commit(System.Object)">
+            <summary>
+            Commits the UnitOfWork if the provided <paramref name="commiter"/> is the Committer.
+            </summary>
+            <returns>
+            true if the provided <paramref name="commiter"/> is the Committer, false otherwise.
+            </returns>
+        </member>
+        <member name="M:Cqrs.Services.ServiceChannelFactory`1.#ctor(System.String)">
+            <summary>
+            Instanciates a new instance of the <see cref="T:Cqrs.Services.ServiceChannelFactory`1"/> class with a specified endpoint configuration name.
+            </summary>
+            <param name="endpointConfigurationName">The configuration name used for the endpoint.</param>
+        </member>
+        <member name="T:Cqrs.Services.ServiceParameterResolver`2">
+            <summary>
+            A <see cref="T:System.Runtime.Serialization.DataContractResolver"/> for use via WCF
+            </summary>
+        </member>
+        <member name="M:Cqrs.Services.ServiceParameterResolver`2.ResolveName(System.String,System.String,System.Type,System.Runtime.Serialization.DataContractResolver)">
+            <summary>
+            Override this method to map the specified xsi:type name and namespace to a data contract type during deserialization.
+            </summary>
+            <returns>
+            The type the xsi:type name and namespace is mapped to. 
+            </returns>
+            <param name="typeName">The xsi:type name to map.</param><param name="typeNamespace">The xsi:type namespace to map.</param><param name="declaredType">The type declared in the data contract.</param><param name="knownTypeResolver">The known type resolver.</param>
+        </member>
+        <member name="M:Cqrs.Services.UnitOfWorkService`1.SetCommitter(System.Object)">
+            <summary>
+            Informs the service of the object that will be committing the <see cref="P:Cqrs.Services.UnitOfWorkService`1.UnitOfWork"/>.
+            </summary>
+            <returns>
+            true if the provided <paramref name="commiter"/> is accepted as the committer, false otherwise.
+            </returns>
+        </member>
+        <member name="M:Cqrs.Services.UnitOfWorkService`1.Commit(System.Object)">
+            <summary>
+            Commits the <see cref="P:Cqrs.Services.UnitOfWorkService`1.UnitOfWork"/> if the provided <paramref name="commiter"/> is the <see cref="P:Cqrs.Services.UnitOfWorkService`1.Committer"/>.
+            </summary>
+            <returns>
+            true if the provided <paramref name="commiter"/> is the <see cref="P:Cqrs.Services.UnitOfWorkService`1.Committer"/>, false otherwise.
+            </returns>
+        </member>
+        <member name="M:Cqrs.Bus.InProcessBus`1.RegisterHandler``1(System.Action{``0},System.Type)">
+            <summary>
+            Register an event or command handler that will listen and respond to events or commands.
+            </summary>
+        </member>
+        <member name="T:Cqrs.Snapshots.DefaultSnapshotStrategy`1">
+            <summary>
+            An <see cref="T:Cqrs.Snapshots.ISnapshotStrategy`1"/> that takes a snapshot every 15 versions
+            </summary>
+            <typeparam name="TAuthenticationToken"></typeparam>
+        </member>
+        <member name="T:Cqrs.Configuration.BusRegistrar">
+            <summary>
+            Triggers the <see cref="T:Cqrs.Bus.IEventHandlerRegistrar"/> and <see cref="T:Cqrs.Bus.ICommandHandlerRegistrar"/> if they are registered in the <see cref="T:Cqrs.Configuration.IDependencyResolver"/>.
+            </summary>
+        </member>
+        <member name="M:Cqrs.Configuration.BusRegistrar.InvokeHandler(System.Type,Cqrs.Bus.IHandlerRegistrar,System.Func{System.Type,System.Collections.Generic.IEnumerable{System.Type}},System.Type)">
+            <summary>
+            Extract the <see cref="M:Cqrs.Bus.IHandlerRegistrar.RegisterHandler``1(System.Action{``0},System.Type)"/> method from the provided <paramref name="bus"/>
+            Create an <see cref="T:System.Action"/> around the provided <paramref name="executorType"/>
+            Then register the created <see cref="T:System.Action"/> using the extracted <see cref="M:Cqrs.Bus.IHandlerRegistrar.RegisterHandler``1(System.Action{``0},System.Type)"/> method
+            </summary>
+        </member>
+    </members>
+</doc>

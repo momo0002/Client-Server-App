@@ -7,7 +7,6 @@
     
     <div class="col-md-6">
         <h2>Message List</h2>
-
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead>
@@ -17,17 +16,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @if (Model != null)
-                        {
-                            <tr>
-                                <td>
-                                    @Html.DisplayFor(m=>m.message)
-                                </td>
-                                <td>
-                                   @Html.DisplayFor(m => m.time)
-                                </td>
-                            </tr>
-                        }
+                        <tr>
+                            @if (Model != null)
+                            {
+                                <td>@Model.message</td>
+                                <td>@Model.time</td>
+                            }
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -39,8 +34,10 @@
 
         @using (Ajax.BeginForm("ListMessages", "Home", null, new AjaxOptions { UpdateTargetId = "updateMessages", InsertionMode = InsertionMode.Replace }))
         {
-            <input class="btn btn-default" value="Show History" type="submit" />
+            <input class="btn btn-default"  value="Show History" type="submit" />
         }
         <div id="updateMessages"></div>
     </div>
 </div>
+
+
